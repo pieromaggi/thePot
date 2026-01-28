@@ -90,9 +90,22 @@
   gap: 12px;
 }
 
+.amountBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 .amount {
   font-weight: 700;
   color: #0f172a;
+}
+
+.editLink {
+  font-size: 13px;
+  color: #2563eb;
+  font-weight: 600;
 }
 
 .splitList {

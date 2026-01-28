@@ -7,22 +7,26 @@ type ExpenseSplit = {
   amount: number;
 };
 
-type ExpenseBody = {
+type ExpenseUpdateBody = {
   description?: string;
   total_amount?: number;
   paid_by_participant_id?: string;
-  occurred_at?: string;
+  occurred_at?: string | null;
   splits?: ExpenseSplit[];
   pot_id?: string;
 };
 
 const toCents = (value: number) => Math.round(value * 100);
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   const supabase = getSupabaseServer();
+  const { id } = await context.params;
   const potId = new URL(request.url).searchParams.get("pot_id");
 
-  if (!potId) {
+  if (!potId || potId === "undefined") {
     return NextResponse.json({ error: "pot_id is required." }, { status: 400 });
   }
 
@@ -35,35 +39,48 @@ export async function GET(request: Request) {
         total_amount,
         occurred_at,
         created_at,
+        paid_by_participant_id,
         paid_by_participant:participants!expenses_paid_by_participant_id_fkey(name),
         splits:expense_splits(
-          participant:participants(name),
-          amount
+          participant_id,
+          amount,
+          participant:participants(name)
         )
       `,
     )
     .eq("pot_id", potId)
-    .order("occurred_at", { ascending: false });
+    .eq("id", id)
+    .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !data) {
+    return NextResponse.json(
+      { error: error?.message ?? "Expense not found." },
+      { status: 404 },
+    );
   }
 
-  return NextResponse.json({ expenses: data ?? [] });
+  return NextResponse.json({ expense: data });
 }
 
-export async function POST(request: Request) {
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   const supabase = getSupabaseServer();
-  const body = (await request.json()) as ExpenseBody;
+  const { id } = await context.params;
+  const body = (await request.json()) as ExpenseUpdateBody;
+
+  if (!body.pot_id || body.pot_id === "undefined") {
+    return NextResponse.json({ error: "pot_id is required." }, { status: 400 });
+  }
 
   if (
     !body.description?.trim() ||
     !body.total_amount ||
-    body.total_amount <= 0 ||
-    !body.pot_id
+    body.total_amount <= 0
   ) {
     return NextResponse.json(
-      { error: "description, pot_id, and positive total_amount are required." },
+      { error: "description and positive total_amount are required." },
       { status: 400 },
     );
   }
@@ -119,38 +136,43 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: expense, error: expenseError } = await supabase
+  const { error: updateError } = await supabase
     .from("expenses")
-    .insert({
+    .update({
       description: body.description.trim(),
-      pot_id: body.pot_id,
       total_amount: body.total_amount,
       paid_by_participant_id: body.paid_by_participant_id ?? null,
-      occurred_at: body.occurred_at ?? undefined,
+      occurred_at: body.occurred_at ?? null,
     })
-    .select("id,description,total_amount,paid_by_participant_id,occurred_at")
-    .single();
+    .eq("id", id)
+    .eq("pot_id", body.pot_id);
 
-  if (expenseError || !expense) {
-    return NextResponse.json(
-      { error: expenseError?.message ?? "Failed to create expense." },
-      { status: 500 },
-    );
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  const { error: splitsError } = await supabase.from("expense_splits").insert(
+  const { error: deleteError } = await supabase
+    .from("expense_splits")
+    .delete()
+    .eq("expense_id", id)
+    .eq("pot_id", body.pot_id);
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
+  const { error: insertError } = await supabase.from("expense_splits").insert(
     body.splits.map((split) => ({
-      expense_id: expense.id,
+      expense_id: id,
       pot_id: body.pot_id,
       participant_id: split.participant_id,
       amount: split.amount,
     })),
   );
 
-  if (splitsError) {
-    await supabase.from("expenses").delete().eq("id", expense.id);
-    return NextResponse.json({ error: splitsError.message }, { status: 500 });
+  if (insertError) {
+    return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ expense }, { status: 201 });
+  return NextResponse.json({ success: true });
 }

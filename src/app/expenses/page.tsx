@@ -144,8 +144,16 @@ export default function ExpensesPage() {
                           Paid by {expense.paid_by_participant?.name ?? "Unknown"}
                         </p>
                       </div>
-                      <div className={styles.amount}>
-                        {currency.format(expense.total_amount)}
+                      <div className={styles.amountBlock}>
+                        <div className={styles.amount}>
+                          {currency.format(expense.total_amount)}
+                        </div>
+                        <a
+                          className={styles.editLink}
+                          href={`/expenses/${expense.id}/edit`}
+                        >
+                          Edit
+                        </a>
                       </div>
                     </header>
 
