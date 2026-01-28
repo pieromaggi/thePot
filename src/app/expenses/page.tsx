@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import styles from "./page.module.css";
+import Link from "next/link";
+
+import AppShell from "../../components/layout/AppShell";
+import Badge from "../../components/ui/Badge";
+import Card from "../../components/ui/Card";
 
 type Pot = {
   id: string;
@@ -89,92 +93,121 @@ export default function ExpensesPage() {
     return expenses.reduce((sum, expense) => sum + expense.total_amount, 0);
   }, [expenses]);
 
+  const primaryLinkClass =
+    "inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const secondaryLinkClass =
+    "inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <div>
-            <h1>Expenses</h1>
-            <p>All expenses recorded for this pot.</p>
+    <AppShell title="Expenses" subtitle="All expenses recorded for this pot.">
+      <div className="flex items-center justify-between">
+        <Link className={secondaryLinkClass} href="/">
+          Back to balances
+        </Link>
+        <Link className={primaryLinkClass} href="/expenses/new">
+          Record expense
+        </Link>
+      </div>
+
+      {error && (
+        <div className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {!pot && isPotReady ? (
+        <Card className="mt-6 flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            Please select a pot before viewing expenses.
+          </p>
+          <Link className={primaryLinkClass} href="/">
+            Choose a pot
+          </Link>
+        </Card>
+      ) : (
+        <div className="mt-6 space-y-6">
+          <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {pot?.name ?? "Pot"}
+              </h2>
+              <p className="text-sm text-gray-500">Total spent</p>
+            </div>
+            <div className="text-2xl font-bold text-blue-600">
+              {currency.format(totalSpent)}
+            </div>
+          </Card>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Recent expenses
+              </h2>
+              <p className="text-sm text-gray-500">
+                Review and edit itemized expenses.
+              </p>
+            </div>
+            <Badge variant="neutral">{expenses.length} items</Badge>
           </div>
-          <div className={styles.headerActions}>
-            <a className={styles.link} href="/">
-              Back to balances
-            </a>
-            <a className={styles.primaryLink} href="/expenses/new">
-              Record expense
-            </a>
-          </div>
-        </header>
 
-        {error && <div className={styles.error}>{error}</div>}
-
-        {!pot && isPotReady ? (
-          <section className={styles.card}>
-            <p>Please select a pot before viewing expenses.</p>
-            <a className={styles.primaryLink} href="/">
-              Choose a pot
-            </a>
-          </section>
-        ) : (
-          <>
-            <section className={styles.summary}>
-              <div>
-                <h2>{pot?.name ?? "Pot"}</h2>
-                <p className={styles.muted}>Total spent</p>
-              </div>
-              <div className={styles.total}>
-                {currency.format(totalSpent)}
-              </div>
-            </section>
-
-            <section className={styles.list}>
-              {isLoading ? (
-                <p>Loading expenses...</p>
-              ) : expenses.length === 0 ? (
-                <p>No expenses yet.</p>
-              ) : (
-                expenses.map((expense) => (
-                  <article key={expense.id} className={styles.expenseCard}>
-                    <header className={styles.expenseHeader}>
-                      <div>
-                        <h3>{expense.description}</h3>
-                        <p className={styles.muted}>
-                          {formatDate(expense.occurred_at ?? expense.created_at)} ·
-                          Paid by {expense.paid_by_participant?.name ?? "Unknown"}
-                        </p>
-                      </div>
-                      <div className={styles.amountBlock}>
-                        <div className={styles.amount}>
-                          {currency.format(expense.total_amount)}
-                        </div>
-                        <a
-                          className={styles.editLink}
-                          href={`/expenses/${expense.id}/edit`}
-                        >
-                          Edit
-                        </a>
-                      </div>
-                    </header>
-
-                    <div className={styles.splitList}>
-                      <span className={styles.splitLabel}>Split between</span>
-                      <ul>
-                        {expense.splits.map((split, index) => (
-                          <li key={`${expense.id}-split-${index}`}>
-                            <span>{split.participant?.name ?? "Unknown"}</span>
-                            <span>{currency.format(split.amount)}</span>
-                          </li>
-                        ))}
-                      </ul>
+          <div className="space-y-4">
+            {isLoading ? (
+              <p className="text-sm text-gray-500">Loading expenses...</p>
+            ) : expenses.length === 0 ? (
+              <Card>
+                <p className="text-sm text-gray-500">No expenses yet.</p>
+              </Card>
+            ) : (
+              expenses.map((expense) => (
+                <Card key={expense.id} className="space-y-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {expense.description}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {formatDate(expense.occurred_at ?? expense.created_at)} ·
+                        Paid by{" "}
+                        {expense.paid_by_participant?.name ?? "Unknown"}
+                      </p>
                     </div>
-                  </article>
-                ))
-              )}
-            </section>
-          </>
-        )}
-      </main>
-    </div>
+                    <div className="flex flex-col items-start gap-2 md:items-end">
+                      <span className="text-lg font-semibold text-gray-900">
+                        {currency.format(expense.total_amount)}
+                      </span>
+                      <Link
+                        className="text-sm font-semibold text-blue-600"
+                        href={`/expenses/${expense.id}/edit`}
+                      >
+                        Edit
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Split between
+                    </span>
+                    <ul className="space-y-2 text-sm text-gray-700">
+                      {expense.splits.map((split, index) => (
+                        <li
+                          key={`${expense.id}-split-${index}`}
+                          className="flex items-center justify-between border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
+                        >
+                          <span>{split.participant?.name ?? "Unknown"}</span>
+                          <span className="font-medium text-gray-900">
+                            {currency.format(split.amount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </AppShell>
   );
 }
