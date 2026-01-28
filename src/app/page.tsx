@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import styles from "./page.module.css";
+import AppShell from "../components/layout/AppShell";
+import Badge from "../components/ui/Badge";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import Input from "../components/ui/Input";
+import StatCard from "../components/ui/StatCard";
+import Table from "../components/ui/Table";
 
 type Participant = {
   id: string;
@@ -43,8 +50,6 @@ export default function Home() {
   const [potNameInput, setPotNameInput] = useState("");
   const [inviteInput, setInviteInput] = useState("");
   const [isPotReady, setIsPotReady] = useState(false);
-  const searchParams = useSearchParams();
-
   const loadData = useCallback(async () => {
     try {
       if (!pot) return;
@@ -97,31 +102,36 @@ export default function Home() {
     setIsPotReady(true);
   }, []);
 
-  useEffect(() => {
-    const inviteCode = searchParams.get("invite");
-    if (!inviteCode) return;
-    const joinWithInvite = async () => {
-      const response = await fetch("/api/pots/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invite_code: inviteCode }),
-      });
-
-      if (!response.ok) {
-        setError("Invalid invite code.");
-        return;
-      }
-
-      const data = (await response.json()) as { pot: Pot };
-      setPot(data.pot);
-      localStorage.setItem("pot", JSON.stringify(data.pot));
+  const handleInviteJoin = useCallback(
+    (joinedPot: Pot) => {
+      setPot(joinedPot);
+      localStorage.setItem("pot", JSON.stringify(joinedPot));
       window.history.replaceState({}, "", "/");
-    };
-    void joinWithInvite();
-  }, [searchParams]);
+    },
+    [setPot],
+  );
+
+  const handleInviteError = useCallback(
+    (message: string) => {
+      setError(message);
+    },
+    [setError],
+  );
 
   const balancesById = useMemo(() => {
     return new Map(balances.map((balance) => [balance.participant_id, balance]));
+  }, [balances]);
+
+  const totalContributed = useMemo(() => {
+    return balances.reduce((sum, balance) => sum + balance.contributed, 0);
+  }, [balances]);
+
+  const totalOwed = useMemo(() => {
+    return balances.reduce((sum, balance) => sum + balance.owed, 0);
+  }, [balances]);
+
+  const netBalance = useMemo(() => {
+    return balances.reduce((sum, balance) => sum + balance.balance, 0);
   }, [balances]);
 
   const handleAddParticipant = async (event: React.FormEvent) => {
@@ -227,209 +237,295 @@ export default function Home() {
       }`
     : "";
 
+  const selectClassName =
+    "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const primaryLinkClass =
+    "inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const secondaryLinkClass =
+    "inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <div>
-            <h1>Pot Tracker</h1>
-            <p>Track group contributions, shared expenses, and balances.</p>
+    <AppShell
+      title="Pot Tracker"
+      subtitle="Track group contributions, shared expenses, and balances."
+    >
+      <Suspense fallback={null}>
+        <InviteJoiner onJoined={handleInviteJoin} onError={handleInviteError} />
+      </Suspense>
+      <div className="flex items-center justify-between">
+        {pot ? (
+          <div className="flex items-center gap-3">
+            <Link className={primaryLinkClass} href="/expenses/new">
+              Record expense
+            </Link>
+            <Link className={secondaryLinkClass} href="/expenses">
+              View expenses
+            </Link>
           </div>
-          {pot && (
-            <div className={styles.headerActions}>
-              <a className={styles.expenseLink} href="/expenses/new">
-                Record an expense
-              </a>
-              <a className={styles.secondaryLink} href="/expenses">
-                View expenses
-              </a>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onClick={handleLeavePot}
-              >
-                Switch pot
-              </button>
-            </div>
-          )}
-        </header>
-
-        {error && <div className={styles.error}>{error}</div>}
-
-        {!pot && isPotReady && (
-          <section className={styles.section}>
-            <h2>Create or join a pot</h2>
-            <div className={styles.sectionGrid}>
-              <form className={styles.card} onSubmit={handleCreatePot}>
-                <h3>Create a pot</h3>
-                <label className={styles.label}>
-                  Pot name
-                  <input
-                    className={styles.input}
-                    value={potNameInput}
-                    onChange={(event) => setPotNameInput(event.target.value)}
-                    placeholder="Weekend Trip"
-                  />
-                </label>
-                <button className={styles.button} type="submit">
-                  Create pot
-                </button>
-              </form>
-
-              <form className={styles.card} onSubmit={handleJoinPot}>
-                <h3>Join a pot</h3>
-                <label className={styles.label}>
-                  Invite code
-                  <input
-                    className={styles.input}
-                    value={inviteInput}
-                    onChange={(event) => setInviteInput(event.target.value)}
-                    placeholder="AB12CD34"
-                  />
-                </label>
-                <button className={styles.button} type="submit">
-                  Join pot
-                </button>
-              </form>
-            </div>
-          </section>
+        ) : (
+          <div />
         )}
+        {pot ? (
+          <Button variant="ghost" onClick={handleLeavePot}>
+            Switch pot
+          </Button>
+        ) : null}
+      </div>
 
-        {pot && (
-          <>
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <div>
-                  <h2>{pot.name}</h2>
-                  <p className={styles.mutedText}>
-                    Invite code: <strong>{pot.invite_code}</strong>
-                  </p>
-                </div>
-                <div className={styles.shareBox}>
-                  <span>Share link</span>
-                  <input className={styles.input} value={shareLink} readOnly />
-                </div>
+      {error && (
+        <div className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {!pot && isPotReady && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Create a pot</h2>
+                <p className="text-sm text-gray-500">
+                  Start a new shared pot for your group.
+                </p>
               </div>
-            </section>
+              <Badge variant="info">New</Badge>
+            </div>
+            <form className="mt-6 space-y-4" onSubmit={handleCreatePot}>
+              <label className="block text-sm font-medium text-gray-700">
+                Pot name
+              </label>
+              <Input
+                value={potNameInput}
+                onChange={(event) => setPotNameInput(event.target.value)}
+                placeholder="Weekend Trip"
+              />
+              <Button type="submit" className="w-full">
+                Create pot
+              </Button>
+            </form>
+          </Card>
 
-            <section className={styles.section}>
-              <h2>Balances</h2>
-              {isLoading ? (
-                <p>Loading balances...</p>
-              ) : (
-                <div className={styles.table}>
-                  <div className={styles.tableRow}>
-                    <div className={styles.tableHeader}>Participant</div>
-                    <div className={styles.tableHeader}>Contributed</div>
-                    <div className={styles.tableHeader}>Owed</div>
-                    <div className={styles.tableHeader}>Balance</div>
-                  </div>
-                  {balances.map((balance) => (
-                    <div key={balance.participant_id} className={styles.tableRow}>
-                      <div className={styles.tableCell}>{balance.name}</div>
-                      <div className={styles.tableCell}>
-                        {currency.format(balance.contributed)}
-                      </div>
-                      <div className={styles.tableCell}>
-                        {currency.format(balance.owed)}
-                      </div>
-                      <div
-                        className={`${styles.tableCell} ${
-                          balance.balance >= 0 ? styles.positive : styles.negative
-                        }`}
-                      >
-                        {currency.format(balance.balance)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Join a pot</h2>
+                <p className="text-sm text-gray-500">
+                  Use an invite code to join an existing pot.
+                </p>
+              </div>
+              <Badge variant="neutral">Invite</Badge>
+            </div>
+            <form className="mt-6 space-y-4" onSubmit={handleJoinPot}>
+              <label className="block text-sm font-medium text-gray-700">
+                Invite code
+              </label>
+              <Input
+                value={inviteInput}
+                onChange={(event) => setInviteInput(event.target.value)}
+                placeholder="AB12CD34"
+              />
+              <Button type="submit" className="w-full">
+                Join pot
+              </Button>
+            </form>
+          </Card>
+        </div>
+      )}
 
-            <section className={styles.sectionGrid}>
-              <form className={styles.card} onSubmit={handleAddParticipant}>
-                <h3>Add participant</h3>
-                <label className={styles.label}>
-                  Name
-                  <input
-                    className={styles.input}
-                    value={newParticipantName}
-                    onChange={(event) => setNewParticipantName(event.target.value)}
-                    placeholder="Jordan"
-                  />
-                </label>
-                <button className={styles.button} type="submit">
-                  Add participant
-                </button>
-              </form>
+      {pot && (
+        <div className="mt-6 space-y-6">
+          <Card className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold">{pot.name}</h2>
+              <p className="text-sm text-gray-500">
+                Invite code:{" "}
+                <span className="font-semibold text-gray-900">
+                  {pot.invite_code}
+                </span>
+              </p>
+            </div>
+            <div className="flex w-full flex-col gap-2 md:max-w-xs">
+              <span className="text-xs uppercase tracking-wide text-gray-400">
+                Share link
+              </span>
+              <Input value={shareLink} readOnly />
+            </div>
+          </Card>
 
-              <form className={styles.card} onSubmit={handleAddContribution}>
-                <h3>Add contribution</h3>
-                <label className={styles.label}>
-                  Participant
-                  <select
-                    className={styles.input}
-                    value={contributionParticipantId}
-                    onChange={(event) =>
-                      setContributionParticipantId(event.target.value)
-                    }
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Participants"
+              value={String(participants.length)}
+            />
+            <StatCard
+              label="Total contributed"
+              value={currency.format(totalContributed)}
+            />
+            <StatCard label="Total owed" value={currency.format(totalOwed)} />
+            <StatCard label="Net balance" value={currency.format(netBalance)} />
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Balances</h2>
+            <p className="text-sm text-gray-500">
+              See who has contributed and who is owed.
+            </p>
+          </div>
+          {isLoading ? (
+            <p className="text-sm text-gray-500">Loading balances...</p>
+          ) : (
+            <Table
+              headers={["Participant", "Contributed", "Owed", "Balance"]}
+              rows={balances.map((balance) => ({
+                key: balance.participant_id,
+                cells: [
+                  <span key="name">{balance.name}</span>,
+                  <span key="contributed">
+                    {currency.format(balance.contributed)}
+                  </span>,
+                  <span key="owed">{currency.format(balance.owed)}</span>,
+                  <span
+                    key="balance"
+                    className={`font-semibold ${
+                      balance.balance >= 0
+                        ? "text-emerald-600"
+                        : "text-red-600"
+                    }`}
                   >
-                    <option value="" disabled>
-                      Select a participant
-                    </option>
-                    {participants.map((participant) => (
-                      <option key={participant.id} value={participant.id}>
-                        {participant.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.label}>
-                  Amount
-                  <input
-                    className={styles.input}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={contributionAmount}
-                    onChange={(event) => setContributionAmount(event.target.value)}
-                    placeholder="25.00"
-                  />
-                </label>
-                <label className={styles.label}>
-                  Note
-                  <input
-                    className={styles.input}
-                    value={contributionNote}
-                    onChange={(event) => setContributionNote(event.target.value)}
-                    placeholder="Monthly top-up"
-                  />
-                </label>
-                <button className={styles.button} type="submit">
-                  Record contribution
-                </button>
-              </form>
+                    {currency.format(balance.balance)}
+                  </span>,
+                ],
+              }))}
+            />
+          )}
 
-              <div className={styles.card}>
-                <h3>Participants</h3>
-                <ul className={styles.list}>
-                  {participants.map((participant) => {
-                    const balance = balancesById.get(participant.id);
-                    return (
-                      <li key={participant.id}>
-                        <span>{participant.name}</span>
-                        <span>
-                          {balance ? currency.format(balance.balance) : "--"}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </section>
-          </>
-        )}
-      </main>
-    </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-1">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add participant
+              </h3>
+              <form className="mt-4 space-y-4" onSubmit={handleAddParticipant}>
+                <label className="block text-sm font-medium text-gray-700">
+                  Name
+                </label>
+                <Input
+                  value={newParticipantName}
+                  onChange={(event) => setNewParticipantName(event.target.value)}
+                  placeholder="Jordan"
+                />
+                <Button type="submit" className="w-full">
+                  Add participant
+                </Button>
+              </form>
+            </Card>
+
+            <Card className="lg:col-span-1">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add contribution
+              </h3>
+              <form className="mt-4 space-y-4" onSubmit={handleAddContribution}>
+                <label className="block text-sm font-medium text-gray-700">
+                  Participant
+                </label>
+                <select
+                  className={selectClassName}
+                  value={contributionParticipantId}
+                  onChange={(event) =>
+                    setContributionParticipantId(event.target.value)
+                  }
+                >
+                  <option value="" disabled>
+                    Select a participant
+                  </option>
+                  {participants.map((participant) => (
+                    <option key={participant.id} value={participant.id}>
+                      {participant.name}
+                    </option>
+                  ))}
+                </select>
+                <label className="block text-sm font-medium text-gray-700">
+                  Amount
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={contributionAmount}
+                  onChange={(event) => setContributionAmount(event.target.value)}
+                  placeholder="25.00"
+                />
+                <label className="block text-sm font-medium text-gray-700">
+                  Note
+                </label>
+                <Input
+                  value={contributionNote}
+                  onChange={(event) => setContributionNote(event.target.value)}
+                  placeholder="Monthly top-up"
+                />
+                <Button type="submit" className="w-full">
+                  Record contribution
+                </Button>
+              </form>
+            </Card>
+
+            <Card className="lg:col-span-1">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Participants
+              </h3>
+              <ul className="mt-4 space-y-3 text-sm text-gray-600">
+                {participants.map((participant) => {
+                  const balance = balancesById.get(participant.id);
+                  return (
+                    <li
+                      key={participant.id}
+                      className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <span>{participant.name}</span>
+                      <span className="font-medium text-gray-900">
+                        {balance ? currency.format(balance.balance) : "--"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          </div>
+        </div>
+      )}
+    </AppShell>
   );
+}
+
+type InviteJoinerProps = {
+  onJoined: (pot: Pot) => void;
+  onError: (message: string) => void;
+};
+
+function InviteJoiner({ onJoined, onError }: InviteJoinerProps) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const inviteCode = searchParams.get("invite");
+    if (!inviteCode) return;
+
+    const joinWithInvite = async () => {
+      const response = await fetch("/api/pots/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: inviteCode }),
+      });
+
+      if (!response.ok) {
+        onError("Invalid invite code.");
+        return;
+      }
+
+      const data = (await response.json()) as { pot: Pot };
+      onJoined(data.pot);
+    };
+
+    void joinWithInvite();
+  }, [searchParams, onJoined, onError]);
+
+  return null;
 }

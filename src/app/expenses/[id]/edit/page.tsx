@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
-import styles from "./page.module.css";
+import Link from "next/link";
+
+import AppShell from "../../../../components/layout/AppShell";
+import Badge from "../../../../components/ui/Badge";
+import Button from "../../../../components/ui/Button";
+import Card from "../../../../components/ui/Card";
+import Input from "../../../../components/ui/Input";
 
 type Participant = {
   id: string;
@@ -218,131 +224,152 @@ export default function ExpenseEditPage() {
     await loadData();
   };
 
+  const selectClassName =
+    "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const chipClass = (active: boolean) =>
+    active
+      ? "rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white"
+      : "rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50";
+  const primaryLinkClass =
+    "inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const secondaryLinkClass =
+    "inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <div>
-            <h1>Edit expense</h1>
-            <p>Update the description, payer, date, and split participants.</p>
-          </div>
-          <div className={styles.headerLinks}>
-            <a className={styles.backLink} href="/expenses">
-              Back to expenses
-            </a>
-            <a className={styles.secondaryLink} href="/">
-              Back to balances
-            </a>
-          </div>
-        </header>
+    <AppShell
+      title="Edit expense"
+      subtitle="Update the description, payer, date, and split participants."
+    >
+      <div className="flex items-center justify-between">
+        <Link className={secondaryLinkClass} href="/expenses">
+          Back to expenses
+        </Link>
+        <Link className={primaryLinkClass} href="/">
+          Back to balances
+        </Link>
+      </div>
 
-        {error && <div className={styles.error}>{error}</div>}
+      {error && (
+        <div className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-        {!pot && isPotReady ? (
-          <div className={styles.form}>
-            <p>Please select a pot before editing an expense.</p>
-            <a className={styles.backLink} href="/">
-              Choose a pot
-            </a>
-          </div>
-        ) : !expenseId ? (
-          <div className={styles.form}>
-            <p>Missing expense id.</p>
-          </div>
-        ) : isLoading ? (
-          <div className={styles.form}>
-            <p>Loading expense...</p>
-          </div>
-        ) : (
-          <form className={styles.form} onSubmit={handleSubmit}>
-            <label className={styles.label}>
-              Description
-              <input
-                className={styles.input}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Groceries"
-              />
-            </label>
-
-            <label className={styles.label}>
-              Total amount
-              <input
-                className={styles.input}
-                type="number"
-                min="0"
-                step="0.01"
-                value={totalAmount}
-                onChange={(event) => setTotalAmount(event.target.value)}
-                placeholder="120.00"
-              />
-            </label>
-
-            <label className={styles.label}>
-              Paid by
-              <select
-                className={styles.input}
-                value={paidBy}
-                onChange={(event) => setPaidBy(event.target.value)}
-              >
-                <option value="" disabled>
-                  Select a participant
-                </option>
-                {participants.map((participant) => (
-                  <option key={participant.id} value={participant.id}>
-                    {participant.name}
+      {!pot && isPotReady ? (
+        <Card className="mt-6 flex flex-col gap-4">
+          <p className="text-sm text-gray-600">
+            Please select a pot before editing an expense.
+          </p>
+          <Link className={primaryLinkClass} href="/">
+            Choose a pot
+          </Link>
+        </Card>
+      ) : !expenseId ? (
+        <Card className="mt-6">
+          <p className="text-sm text-gray-600">Missing expense id.</p>
+        </Card>
+      ) : isLoading ? (
+        <Card className="mt-6">
+          <p className="text-sm text-gray-600">Loading expense...</p>
+        </Card>
+      ) : (
+        <Card className="mt-6">
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Description
+                <Input
+                  className="mt-2"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Groceries"
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Total amount
+                <Input
+                  className="mt-2"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={totalAmount}
+                  onChange={(event) => setTotalAmount(event.target.value)}
+                  placeholder="120.00"
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Paid by
+                <select
+                  className={`${selectClassName} mt-2`}
+                  value={paidBy}
+                  onChange={(event) => setPaidBy(event.target.value)}
+                >
+                  <option value="" disabled>
+                    Select a participant
                   </option>
-                ))}
-              </select>
-            </label>
-
-            <label className={styles.label}>
-              Date
-              <input
-                className={styles.input}
-                type="date"
-                value={occurredAt}
-                onChange={(event) => setOccurredAt(event.target.value)}
-              />
-            </label>
-
-            <div className={styles.splitMode}>
-              <span>Split mode</span>
-              <button
-                type="button"
-                className={
-                  splitMode === "equal" ? styles.modeActive : styles.modeButton
-                }
-                onClick={() => setSplitMode("equal")}
-              >
-                Equal split
-              </button>
-              <button
-                type="button"
-                className={
-                  splitMode === "custom" ? styles.modeActive : styles.modeButton
-                }
-                onClick={() => setSplitMode("custom")}
-              >
-                Custom split
-              </button>
+                  {participants.map((participant) => (
+                    <option key={participant.id} value={participant.id}>
+                      {participant.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Date
+                <Input
+                  className="mt-2"
+                  type="date"
+                  value={occurredAt}
+                  onChange={(event) => setOccurredAt(event.target.value)}
+                />
+              </label>
+              <div className="flex items-end gap-2">
+                <Badge variant="info">Split mode</Badge>
+                <button
+                  type="button"
+                  className={chipClass(splitMode === "equal")}
+                  onClick={() => setSplitMode("equal")}
+                >
+                  Equal split
+                </button>
+                <button
+                  type="button"
+                  className={chipClass(splitMode === "custom")}
+                  onClick={() => setSplitMode("custom")}
+                >
+                  Custom split
+                </button>
+              </div>
             </div>
 
-            <div className={styles.participants}>
-              <h3>Participants</h3>
-              <div className={styles.participantList}>
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Participants
+                </h3>
+                <span className="text-xs text-gray-500">
+                  Select who shares this expense.
+                </span>
+              </div>
+              <div className="space-y-3">
                 {participants.map((participant) => (
-                  <label key={participant.id} className={styles.participantItem}>
-                    <input
-                      type="checkbox"
-                      checked={selectedSet.has(participant.id)}
-                      onChange={() => handleToggleParticipant(participant.id)}
-                    />
-                    <span>{participant.name}</span>
+                  <label
+                    key={participant.id}
+                    className="flex flex-col gap-3 rounded-lg border border-gray-200 px-4 py-3 text-sm text-gray-700 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedSet.has(participant.id)}
+                        onChange={() => handleToggleParticipant(participant.id)}
+                      />
+                      <span>{participant.name}</span>
+                    </div>
                     {splitMode === "custom" &&
                       selectedSet.has(participant.id) && (
-                        <input
-                          className={styles.splitInput}
+                        <Input
+                          className="w-full md:w-32"
                           type="number"
                           min="0"
                           step="0.01"
@@ -361,16 +388,12 @@ export default function ExpenseEditPage() {
               </div>
             </div>
 
-            <button
-              className={styles.button}
-              type="submit"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting ? "Saving..." : "Save changes"}
-            </button>
+            </Button>
           </form>
-        )}
-      </main>
-    </div>
+        </Card>
+      )}
+    </AppShell>
   );
 }
