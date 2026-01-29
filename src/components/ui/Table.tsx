@@ -12,8 +12,8 @@ type TableProps = {
 
 export default function Table({ headers, rows }: TableProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <table className="w-full min-w-[560px] md:min-w-0 text-sm">
         <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
           <tr>
             {headers.map((header) => (
