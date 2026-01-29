@@ -11,11 +11,11 @@ type AppShellProps = {
 
 export default function AppShell({ title, subtitle, children }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-[#F7F8FA] text-gray-900 flex">
+    <div className="min-h-screen bg-[#F7F8FA] text-gray-900 flex flex-col md:flex-row">
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Topbar title={title} subtitle={subtitle} />
-        <main className="flex-1 px-8 py-6">
+        <main className="flex-1 px-4 py-4 md:px-8 md:py-6">
           <div className="max-w-7xl mx-auto w-full">{children}</div>
         </main>
       </div>
